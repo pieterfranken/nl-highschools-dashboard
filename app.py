@@ -47,9 +47,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data(show_spinner=False)
-def load_data():
-    """Load schools with coordinates and client flags via lib.data"""
+def load_data(clients_version: int = 0):
+    """Load schools with coordinates and client flags via lib.data.
+    The clients_version param breaks cache when client set changes.
+    """
     try:
+        _ = clients_version  # used for caching key
         return load_schools_lib(with_client_flag=True)
     except Exception as e:
         st.error(f"❌ Error loading dataset: {e}")
@@ -88,7 +91,8 @@ def main():
         """)
 
     # Load data
-    df = load_data()
+    clients_version = st.session_state.get("clients_version", 0)
+    df = load_data(clients_version)
     
     # Sidebar quick navigation
     st.sidebar.header("📂 Navigation")
@@ -374,7 +378,7 @@ def main():
         ]
         available_cols = [c for c in display_columns if c in search_results.columns]
 
-        for idx, row in search_results.reset_index(drop=True).iterrows():
+        for _, row in search_results.reset_index(drop=True).iterrows():
             school_id = str(row.get('vestigings_id', ''))
             is_client = bool(row.get(IS_CLIENT_COL, False))
             cols = st.columns([4, 2, 2, 2, 2])
@@ -387,10 +391,12 @@ def main():
             with cols[3]:
                 if not is_client and st.button("Mark as client", key=f"add-{school_id}"):
                     toggle_client(filtered_df, school_id, True)
+                    st.session_state["clients_version"] = st.session_state.get("clients_version", 0) + 1
                     st.rerun()
             with cols[4]:
                 if is_client and st.button("Remove client", type="secondary", key=f"rm-{school_id}"):
                     toggle_client(filtered_df, school_id, False)
+                    st.session_state["clients_version"] = st.session_state.get("clients_version", 0) + 1
                     st.rerun()
 
         # Also show a compact table if desired
