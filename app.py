@@ -56,6 +56,13 @@ def load_data():
         st.stop()
 
 def main():
+    # Optional: allow setting GitHub token from a text input for quick Cloud enablement
+    with st.sidebar.expander("GitHub Sync (optional)"):
+        token_input = st.text_input("GITHUB_TOKEN", type="password", help="Used to persist clients.json to GitHub on Cloud")
+        if token_input:
+            st.session_state["GITHUB_TOKEN"] = token_input
+            st.success("GitHub token set for this session.")
+
     # Header
     st.markdown('<h1 class="main-header">🎓 Dutch High Schools Dashboard</h1>', unsafe_allow_html=True)
     st.markdown("**Comprehensive analysis of 1,620+ Dutch secondary schools with detailed metrics and insights**")
@@ -79,7 +86,7 @@ def main():
 
         **GitHub Repository:** [nl-highschools](https://github.com/pieterfranken/nl-highschools)
         """)
-    
+
     # Load data
     df = load_data()
     

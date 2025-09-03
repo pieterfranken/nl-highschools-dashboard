@@ -29,12 +29,16 @@ from lib.config import (
 
 
 def _get_github_token() -> Optional[str]:
-    # Try Streamlit secrets first
+    # Try Streamlit session (set via UI)
     try:
         import streamlit as st
-        token = st.secrets.get("GITHUB_TOKEN")
-        if token:
-            return token
+        tok = st.session_state.get("GITHUB_TOKEN")
+        if tok:
+            return tok
+        # Then secrets
+        tok = st.secrets.get("GITHUB_TOKEN")
+        if tok:
+            return tok
     except Exception:
         pass
     # Fallback to environment
