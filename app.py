@@ -87,9 +87,21 @@ def main():
     # Load data
     df = load_data()
     
+    # Sidebar navigation
+    st.sidebar.header("📂 Navigation")
+    try:
+        st.sidebar.page_link("app.py", label="Overview", icon="🏠")
+        st.sidebar.page_link("pages/1_🗺️_Map.py", label="Map", icon="🗺️")
+        st.sidebar.page_link("pages/2_🎯_Clients.py", label="Clients", icon="🎯")
+    except Exception:
+        # Fallback: simple links
+        st.sidebar.write("- Overview (current)")
+        st.sidebar.write("- Map (see pages/1_🗺️_Map.py)")
+        st.sidebar.write("- Clients (see pages/2_🎯_Clients.py)")
+
     # Sidebar filters
     st.sidebar.header("🔍 Filters & Options")
-    
+
     # Province filter
     provinces = ['All'] + sorted(df['province'].dropna().unique().tolist())
     selected_province = st.sidebar.selectbox("📍 Select Province", provinces)
