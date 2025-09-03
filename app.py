@@ -12,6 +12,11 @@ from plotly.subplots import make_subplots
 import folium
 from streamlit_folium import st_folium
 
+# Examify modular utilities
+from lib.data import load_schools as load_schools_lib, toggle_client
+from lib.maps import build_map
+from lib.config import ID_COL, NAME_COL, CITY_COL, PROVINCE_COL, IS_CLIENT_COL
+
 # Page configuration
 st.set_page_config(
     page_title="🎓 Dutch High Schools Dashboard",
@@ -41,20 +46,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def load_data():
-    """Load and cache the schools dataset"""
+    """Load schools with coordinates and client flags via lib.data"""
     try:
-        df = pd.read_csv('nl_highschools_full.csv')
-        # Optimize memory usage for cloud deployment
-        for col in df.columns:
-            if df[col].dtype == 'object':
-                df[col] = df[col].astype('string')
-        return df
-    except FileNotFoundError:
-        st.error("❌ Dataset file 'nl_highschools_full.csv' not found.")
-        st.info("💡 If you're running this locally, please run: `python build_nl_highschools_dataset.py`")
-        st.stop()
+        return load_schools_lib(with_client_flag=True)
     except Exception as e:
         st.error(f"❌ Error loading dataset: {e}")
         st.stop()
@@ -199,34 +195,53 @@ def main():
     
     with tab2:
         st.header("🗺️ Geographic Analysis")
-        
-        # Map would go here (simplified for now due to coordinate requirements)
-        st.info("🗺️ Interactive map feature would require geocoding coordinates for each school address.")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Vacation region analysis
-            vacation_stats = filtered_df.groupby('vacation_region').agg({
-                'school_name': 'count',
-                'enrollment_total': 'mean'
-            }).round(0)
-            vacation_stats.columns = ['Schools', 'Avg Enrollment']
-            st.subheader("🏖️ By Vacation Region")
-            st.dataframe(vacation_stats)
-        
-        with col2:
-            # Municipality analysis
-            st.subheader("🏛️ Top Cities by School Count")
-            city_counts = filtered_df['city'].value_counts().head(10)
-            fig_cities = px.bar(
-                x=city_counts.values,
-                y=city_counts.index,
-                orientation='h',
-                title="Schools by City (Top 10)"
-            )
-            fig_cities.update_layout(height=400)
-            st.plotly_chart(fig_cities, width='stretch')
+
+        # Lightweight map inline
+        try:
+            # Filters in this tab
+            colf1, colf2, colf3 = st.columns(3)
+            with colf1:
+                only_clients = st.toggle("Show only clients", value=False, key="map_only_clients")
+            with colf2:
+                provinces = ['All'] + (sorted(filtered_df['province'].dropna().unique().tolist()) if 'province' in filtered_df.columns else [])
+                province_map = st.selectbox("Province", options=provinces, index=0, key="map_province")
+            with colf3:
+                search_map = st.text_input("Search (name or city)", key="map_search")
+
+            map_data = filtered_df.copy()
+            if province_map != 'All' and 'province' in map_data.columns:
+                map_data = map_data[map_data['province'] == province_map]
+            if search_map:
+                mask = (
+                    map_data['school_name'].str.contains(search_map, case=False, na=False)
+                    | map_data['city'].str.contains(search_map, case=False, na=False)
+                )
+                map_data = map_data[mask]
+            if only_clients and IS_CLIENT_COL in map_data.columns:
+                map_data = map_data[map_data[IS_CLIENT_COL] == True]
+
+            # Build and render
+            m = build_map(map_data, only_clients=only_clients)
+            if m is None:
+                st.info("No data to display on the map.")
+            else:
+                st_folium(m, height=600)
+        except Exception as e:
+            st.warning(f"Map unavailable: {e}")
+
+        st.divider()
+
+        # Municipality analysis
+        st.subheader("🏛️ Top Cities by School Count")
+        city_counts = filtered_df['city'].value_counts().head(10)
+        fig_cities = px.bar(
+            x=city_counts.values,
+            y=city_counts.index,
+            orientation='h',
+            title="Schools by City (Top 10)"
+        )
+        fig_cities.update_layout(height=400)
+        st.plotly_chart(fig_cities, width='stretch')
     
     with tab3:
         st.header("🎓 Education Level Analysis")
@@ -311,44 +326,56 @@ def main():
             st.plotly_chart(fig_contact, width='stretch')
     
     with tab5:
-        st.header("🔍 School Finder")
-        
+        st.header("🔍 School Finder & Clients")
+
         # Search functionality
         search_term = st.text_input("🔍 Search schools by name or city:")
-        
+
         if search_term:
             search_results = filtered_df[
                 filtered_df['school_name'].str.contains(search_term, case=False, na=False) |
                 filtered_df['city'].str.contains(search_term, case=False, na=False)
             ]
         else:
-            search_results = filtered_df.head(20)  # Show first 20 schools by default
-        
+            search_results = filtered_df.head(50)  # Show first 50 schools by default
+
         st.subheader(f"📋 Search Results ({len(search_results)} schools)")
-        
+
         # Display results
         display_columns = [
-            'school_name', 'city', 'province', 'levels_offered', 
+            'school_name', 'city', 'province', 'levels_offered',
             'enrollment_total', 'school_size_category', 'phone_formatted', 'website'
         ]
-        
-        if len(search_results) > 0:
-            st.dataframe(
-                search_results[display_columns].reset_index(drop=True),
-                width='stretch',
-                column_config={
-                    'school_name': 'School Name',
-                    'city': 'City',
-                    'province': 'Province',
-                    'levels_offered': 'Education Levels',
-                    'enrollment_total': st.column_config.NumberColumn('Students', format="%.0f"),
-                    'school_size_category': 'Size Category',
-                    'phone_formatted': 'Phone',
-                    'website': st.column_config.LinkColumn('Website')
-                }
-            )
-        else:
-            st.info("No schools found matching your search criteria.")
+        available_cols = [c for c in display_columns if c in search_results.columns]
+
+        for idx, row in search_results.reset_index(drop=True).iterrows():
+            school_id = str(row.get('vestigings_id', ''))
+            is_client = bool(row.get(IS_CLIENT_COL, False))
+            cols = st.columns([4, 2, 2, 2, 2])
+            with cols[0]:
+                st.write(f"{row.get('school_name', '')} — {row.get('city', '')}")
+            with cols[1]:
+                st.write(f"ID: {school_id}")
+            with cols[2]:
+                st.write("Client" if is_client else "Not client")
+            with cols[3]:
+                if not is_client and st.button("Mark as client", key=f"add-{school_id}"):
+                    toggle_client(filtered_df, school_id, True)
+                    st.rerun()
+            with cols[4]:
+                if is_client and st.button("Remove client", type="secondary", key=f"rm-{school_id}"):
+                    toggle_client(filtered_df, school_id, False)
+                    st.rerun()
+
+        # Also show a compact table if desired
+        with st.expander("Show compact table"):
+            if len(search_results) > 0 and available_cols:
+                st.dataframe(
+                    search_results[available_cols].reset_index(drop=True),
+                    width='stretch',
+                )
+            else:
+                st.info("No schools found matching your search criteria.")
     
     # Footer
     st.markdown("---")
