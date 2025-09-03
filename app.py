@@ -59,12 +59,6 @@ def load_data(clients_version: int = 0):
         st.stop()
 
 def main():
-    # Optional: allow setting GitHub token from a text input for quick Cloud enablement
-    with st.sidebar.expander("GitHub Sync (optional)"):
-        token_input = st.text_input("GITHUB_TOKEN", type="password", help="Used to persist clients.json to GitHub on Cloud")
-        if token_input:
-            st.session_state["GITHUB_TOKEN"] = token_input
-            st.success("GitHub token set for this session.")
 
     # Header
     st.markdown('<h1 class="main-header">🎓 Dutch High Schools Dashboard</h1>', unsafe_allow_html=True)
@@ -107,22 +101,18 @@ def main():
     # Sidebar filters
     st.sidebar.header("🔍 Filters & Options")
 
-    # Show GitHub sync status and controls
+    # Show GitHub sync status (concise)
     try:
         from lib.data import has_github_token, github_clients_count
         if has_github_token():
             cnt = github_clients_count()
-            caption = f"Clients synced to GitHub ✓{'' if cnt is None else f' ({cnt})'}"
             last = st.session_state.get("github_save_time")
+            note = f"GitHub sync ✓{'' if cnt is None else f' ({cnt})'}"
             if last:
-                caption += f" • Last save: {last[:19]}Z"
-            st.sidebar.caption(caption)
-            if st.sidebar.button("🔄 Reload clients from GitHub"):
-                # Force reload by clearing cache of load_data and re-running
-                st.cache_data.clear()
-                st.rerun()
+                note += f" • {last[:19]}Z"
+            st.sidebar.caption(note)
         else:
-            st.sidebar.caption("Clients stored locally (Cloud resets without token)")
+            st.sidebar.caption("Clients stored locally")
     except Exception:
         pass
 
