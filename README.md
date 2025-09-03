@@ -96,6 +96,31 @@ streamlit run app.py
 
 The dashboard will open in your web browser at `http://localhost:8501`
 
+
+### 2b. New Multipage App Structure
+
+This repo now uses a modular structure and Streamlit multipage app:
+
+- lib/
+  - config.py — central constants and paths
+  - data.py — load/save schools and clients, resolve CSVs
+  - maps.py — Folium map builder with client highlighting
+- pages/
+  - 1_🗺️_Map.py — interactive map of schools (clients in green)
+  - 2_🎯_Clients.py — manage client schools (mark/unmark)
+- app.py — Overview page with KPIs and finder
+
+Run the app:
+
+```bash
+streamlit run app.py
+```
+
+Tips:
+- Use the Map page to see geocoded schools (clients highlighted).
+- Use the Clients page to mark a school as an Examify client; this writes client_schools.json.
+- If coordinates are missing, run one of the geocoding scripts (e.g., geocode_all_schools.py) to populate latitude/longitude.
+
 ### 3. Deploy to Streamlit Cloud (Optional)
 Deploy your dashboard for public access:
 

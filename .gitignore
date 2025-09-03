@@ -10,7 +10,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/  # allow committing our Python package under lib/
 lib64/
 parts/
 sdist/

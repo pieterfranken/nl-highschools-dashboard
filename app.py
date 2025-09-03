@@ -94,10 +94,10 @@ def main():
     provinces = ['All'] + sorted(df['province'].dropna().unique().tolist())
     selected_province = st.sidebar.selectbox("📍 Select Province", provinces)
     
-    # Education level filter
+    # Education level filter (only relevant levels)
     education_levels = st.sidebar.multiselect(
         "🎓 Education Levels",
-        ['PRO', 'VMBO', 'MAVO', 'HAVO', 'VWO', 'BRUGJAAR'],
+        ['VMBO', 'HAVO', 'VWO'],
         default=['HAVO', 'VWO']
     )
     
@@ -156,15 +156,15 @@ def main():
             # Province distribution
             province_counts = filtered_df['province'].value_counts()
             fig_province = px.bar(
-                x=province_counts.values,
-                y=province_counts.index,
+                x=province_counts.values.tolist(),
+                y=province_counts.index.tolist(),
                 orientation='h',
                 title="Schools by Province",
                 labels={'x': 'Number of Schools', 'y': 'Province'}
             )
             fig_province.update_layout(height=400)
-            st.plotly_chart(fig_province, use_container_width=True)
-        
+            st.plotly_chart(fig_province, width='stretch')
+
         with col2:
             # School size distribution
             size_counts = filtered_df['school_size_category'].value_counts()
@@ -173,8 +173,8 @@ def main():
                 names=size_counts.index,
                 title="School Size Distribution"
             )
-            st.plotly_chart(fig_size, use_container_width=True)
-        
+            st.plotly_chart(fig_size, width='stretch')
+
         # Education structure breakdown
         st.subheader("🎓 Education Structure Analysis")
         structure_counts = filtered_df['education_structure'].value_counts().head(10)
@@ -185,7 +185,7 @@ def main():
             labels={'x': 'Education Structure', 'y': 'Number of Schools'}
         )
         fig_structure.update_xaxes(tickangle=45)
-        st.plotly_chart(fig_structure, use_container_width=True)
+        st.plotly_chart(fig_structure, width='stretch')
     
     with tab2:
         st.header("🗺️ Geographic Analysis")
@@ -216,25 +216,26 @@ def main():
                 title="Schools by City (Top 10)"
             )
             fig_cities.update_layout(height=400)
-            st.plotly_chart(fig_cities, use_container_width=True)
+            st.plotly_chart(fig_cities, width='stretch')
     
     with tab3:
         st.header("🎓 Education Level Analysis")
         
-        # Education level breakdown
+        # Education level breakdown (relevant levels only)
         education_data = []
-        for level in ['PRO', 'VMBO', 'MAVO', 'HAVO', 'VWO', 'BRUGJAAR']:
-            count = filtered_df[level].sum()
-            percentage = (count / len(filtered_df)) * 100
-            education_data.append({'Level': level, 'Schools': count, 'Percentage': f"{percentage:.1f}%"})
-        
+        for level in ['VMBO', 'HAVO', 'VWO']:
+            if level in filtered_df.columns:
+                count = filtered_df[level].sum()
+                percentage = (count / len(filtered_df)) * 100 if len(filtered_df) else 0
+                education_data.append({'Level': level, 'Schools': count, 'Percentage': f"{percentage:.1f}%"})
+
         education_df = pd.DataFrame(education_data)
         
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.subheader("📚 Education Levels Offered")
-            st.dataframe(education_df, use_container_width=True)
+            st.dataframe(education_df, width='stretch')
         
         with col2:
             fig_education = px.bar(
@@ -245,11 +246,12 @@ def main():
                 color='Schools',
                 color_continuous_scale='viridis'
             )
-            st.plotly_chart(fig_education, use_container_width=True)
+            st.plotly_chart(fig_education, width='stretch')
         
         # Comprehensive schools analysis
         st.subheader("🎯 Comprehensive Schools Analysis")
-        filtered_df['level_count'] = filtered_df[['PRO', 'VMBO', 'MAVO', 'HAVO', 'VWO']].sum(axis=1)
+        relevant_cols = [c for c in ['VMBO', 'HAVO', 'VWO'] if c in filtered_df.columns]
+        filtered_df['level_count'] = filtered_df[relevant_cols].sum(axis=1) if relevant_cols else 0
         comprehensive_stats = filtered_df.groupby('level_count').agg({
             'school_name': 'count',
             'enrollment_total': 'mean'
@@ -296,7 +298,7 @@ def main():
                 color='Percentage',
                 color_continuous_scale='blues'
             )
-            st.plotly_chart(fig_contact, use_container_width=True)
+            st.plotly_chart(fig_contact, width='stretch')
     
     with tab5:
         st.header("🔍 School Finder")
@@ -323,7 +325,7 @@ def main():
         if len(search_results) > 0:
             st.dataframe(
                 search_results[display_columns].reset_index(drop=True),
-                use_container_width=True,
+                width='stretch',
                 column_config={
                     'school_name': 'School Name',
                     'city': 'City',
