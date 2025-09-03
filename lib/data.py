@@ -7,7 +7,8 @@ from pathlib import Path
 import json
 import os
 import base64
-from typing import Optional, Tuple
+from typing import Optional
+from datetime import datetime, timezone
 import pandas as pd
 
 from lib.config import (
@@ -133,6 +134,7 @@ def save_clients(client_ids: set[str]) -> None:
     try:
         import streamlit as st
         st.session_state["github_save_ok"] = ok
+        st.session_state["github_save_time"] = datetime.now(timezone.utc).isoformat()
     except Exception:
         pass
 

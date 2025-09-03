@@ -103,12 +103,20 @@ def main():
     # Sidebar filters
     st.sidebar.header("🔍 Filters & Options")
 
-    # Show GitHub sync status
+    # Show GitHub sync status and controls
     try:
         from lib.data import has_github_token, github_clients_count
         if has_github_token():
             cnt = github_clients_count()
-            st.sidebar.caption(f"Clients synced to GitHub ✓{'' if cnt is None else f' ({cnt})'}")
+            caption = f"Clients synced to GitHub ✓{'' if cnt is None else f' ({cnt})'}"
+            last = st.session_state.get("github_save_time")
+            if last:
+                caption += f" • Last save: {last[:19]}Z"
+            st.sidebar.caption(caption)
+            if st.sidebar.button("🔄 Reload clients from GitHub"):
+                # Force reload by clearing cache of load_data and re-running
+                st.cache_data.clear()
+                st.rerun()
         else:
             st.sidebar.caption("Clients stored locally (Cloud resets without token)")
     except Exception:
