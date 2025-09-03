@@ -33,3 +33,10 @@ IS_CLIENT_COL = "is_client"
 RELEVANT_LEVELS = ["VMBO", "HAVO", "VWO"]
 IRRELEVANT_LEVELS = ["PRO", "BRUGJAAR", "MAVO"]
 
+
+
+# GitHub persistence defaults (used if a token is provided via env or Streamlit secrets)
+GITHUB_OWNER = "pieterfranken"
+GITHUB_REPO = "nl-highschools-dashboard"
+GITHUB_BRANCH = "main"
+GITHUB_CLIENTS_PATH = "client_schools.json"

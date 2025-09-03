@@ -219,3 +219,12 @@ The included Streamlit dashboard (`app.py`) provides:
 - Missing data is handled gracefully with fallback options
 - Schools without enrollment data will still appear in the output with empty enrollment fields
 - The interactive dashboard requires additional dependencies (streamlit, plotly, folium)
+
+
+### Streamlit Cloud persistence of clients (optional)
+
+To persist client_schools.json when running on Streamlit Cloud, add a GitHub token with repo scope:
+
+- In Streamlit Cloud app settings, add a secret `GITHUB_TOKEN: <your_token>`
+- The app will read from/write to `client_schools.json` in the repo on branch `main`
+- Locally, it still writes to client_schools.json on disk

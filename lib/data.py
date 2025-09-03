@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import os
+import base64
 from typing import Optional
 import pandas as pd
 
@@ -19,22 +21,86 @@ from lib.config import (
     IS_CLIENT_COL,
     RELEVANT_LEVELS,
     IRRELEVANT_LEVELS,
+    GITHUB_OWNER,
+    GITHUB_REPO,
+    GITHUB_BRANCH,
+    GITHUB_CLIENTS_PATH,
 )
 
 
+def _get_github_token() -> Optional[str]:
+    # Try Streamlit secrets first
+    try:
+        import streamlit as st
+        token = st.secrets.get("GITHUB_TOKEN")
+        if token:
+            return token
+    except Exception:
+        pass
+    # Fallback to environment
+    return os.environ.get("GITHUB_TOKEN")
+
+
+def _github_headers(token: str) -> dict:
+    return {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+
+
 def load_clients() -> set[str]:
+    # Prefer local file for simplicity
     if Path(CLIENT_FILE).exists():
         try:
             with open(CLIENT_FILE, "r") as f:
                 return set(json.load(f))
         except Exception:
-            return set()
+            pass
+    # On Cloud: try GitHub
+    token = _get_github_token()
+    if token:
+        import requests
+        url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{GITHUB_CLIENTS_PATH}?ref={GITHUB_BRANCH}"
+        r = requests.get(url, headers=_github_headers(token))
+        if r.status_code == 200:
+            content = r.json().get("content")
+            if content:
+                decoded = base64.b64decode(content).decode("utf-8")
+                try:
+                    return set(json.loads(decoded))
+                except Exception:
+                    return set()
     return set()
 
 
 def save_clients(client_ids: set[str]) -> None:
-    with open(CLIENT_FILE, "w") as f:
-        json.dump(sorted(list(client_ids)), f, indent=2)
+    # Save local (works locally and on Cloud ephemeral FS)
+    try:
+        with open(CLIENT_FILE, "w") as f:
+            json.dump(sorted(list(client_ids)), f, indent=2)
+    except Exception:
+        pass
+
+    # Also push to GitHub if token available (to persist across Cloud restarts)
+    token = _get_github_token()
+    if not token:
+        return
+    import requests
+    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{GITHUB_CLIENTS_PATH}"
+
+    # Need current SHA if file exists
+    sha = None
+    r_get = requests.get(url, headers=_github_headers(token), params={"ref": GITHUB_BRANCH})
+    if r_get.status_code == 200:
+        sha = r_get.json().get("sha")
+
+    payload = {
+        "message": "chore(data): update client_schools.json via Streamlit app",
+        "content": base64.b64encode(json.dumps(sorted(list(client_ids))).encode("utf-8")).decode("utf-8"),
+        "branch": GITHUB_BRANCH,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    r_put = requests.put(url, headers=_github_headers(token), json=payload)
+    # Swallow errors but could log
 
 
 def resolve_data_file() -> Path:
