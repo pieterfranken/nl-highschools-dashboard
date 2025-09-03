@@ -88,15 +88,6 @@ def main():
     clients_version = st.session_state.get("clients_version", 0)
     df = load_data(clients_version)
     
-    # Sidebar quick navigation
-    st.sidebar.header("📂 Navigation")
-    try:
-        if st.sidebar.button("🗺️ Open Map"):
-            st.switch_page("pages/1_🗺️_Map.py")
-        if st.sidebar.button("🎯 Open Clients"):
-            st.switch_page("pages/2_🎯_Clients.py")
-    except Exception:
-        pass
 
     # Sidebar filters
     st.sidebar.header("🔍 Filters & Options")
