@@ -1,0 +1,12 @@
+# Core data processing
+pandas>=2.0.0,<3.0.0
+numpy>=1.23.0,<2.0.0
+
+# Interactive dashboard
+streamlit>=1.49.0,<2.0.0
+plotly>=6.0.0,<7.0.0
+folium>=0.20.0,<1.0.0
+streamlit-folium>=0.25.0,<1.0.0
+
+# Additional utilities for better performance
+pyarrow>=10.0.0
