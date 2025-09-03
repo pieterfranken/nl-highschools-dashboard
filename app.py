@@ -103,21 +103,32 @@ def main():
     # Sidebar filters
     st.sidebar.header("🔍 Filters & Options")
 
+    # Show GitHub sync status
+    try:
+        from lib.data import has_github_token, github_clients_count
+        if has_github_token():
+            cnt = github_clients_count()
+            st.sidebar.caption(f"Clients synced to GitHub ✓{'' if cnt is None else f' ({cnt})'}")
+        else:
+            st.sidebar.caption("Clients stored locally (Cloud resets without token)")
+    except Exception:
+        pass
+
     # Province filter
     provinces = ['All'] + sorted(df['province'].dropna().unique().tolist())
     selected_province = st.sidebar.selectbox("📍 Select Province", provinces)
-    
+
     # Education level filter (only relevant levels)
     education_levels = st.sidebar.multiselect(
         "🎓 Education Levels",
         ['VMBO', 'HAVO', 'VWO'],
         default=['HAVO', 'VWO']
     )
-    
+
     # School size filter
     size_categories = ['All'] + sorted(df['school_size_category'].dropna().unique().tolist())
     selected_size = st.sidebar.selectbox("📊 School Size", size_categories)
-    
+
     # Denomination filter
     denominations = ['All'] + sorted(df['denomination'].dropna().unique().tolist())
     selected_denomination = st.sidebar.selectbox("⛪ Denomination", denominations)

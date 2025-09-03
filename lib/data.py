@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 import os
 import base64
-from typing import Optional
+from typing import Optional, Tuple
 import pandas as pd
 
 from lib.config import (
@@ -45,8 +45,31 @@ def _get_github_token() -> Optional[str]:
     return os.environ.get("GITHUB_TOKEN")
 
 
+def has_github_token() -> bool:
+    return _get_github_token() is not None
+
+
 def _github_headers(token: str) -> dict:
     return {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+
+
+def github_clients_count() -> Optional[int]:
+    token = _get_github_token()
+    if not token:
+        return None
+    import requests
+    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{GITHUB_CLIENTS_PATH}?ref={GITHUB_BRANCH}"
+    r = requests.get(url, headers=_github_headers(token))
+    if r.status_code == 200:
+        content = r.json().get("content")
+        if content:
+            decoded = base64.b64decode(content).decode("utf-8")
+            try:
+                data = json.loads(decoded)
+                return len(data)
+            except Exception:
+                return 0
+    return None
 
 
 def load_clients() -> set[str]:
@@ -84,27 +107,34 @@ def save_clients(client_ids: set[str]) -> None:
 
     # Also push to GitHub if token available (to persist across Cloud restarts)
     token = _get_github_token()
-    if not token:
-        return
-    import requests
-    url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{GITHUB_CLIENTS_PATH}"
+    ok = False
+    if token:
+        import requests
+        url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{GITHUB_CLIENTS_PATH}"
 
-    # Need current SHA if file exists
-    sha = None
-    r_get = requests.get(url, headers=_github_headers(token), params={"ref": GITHUB_BRANCH})
-    if r_get.status_code == 200:
-        sha = r_get.json().get("sha")
+        # Need current SHA if file exists
+        sha = None
+        r_get = requests.get(url, headers=_github_headers(token), params={"ref": GITHUB_BRANCH})
+        if r_get.status_code == 200:
+            sha = r_get.json().get("sha")
 
-    payload = {
-        "message": "chore(data): update client_schools.json via Streamlit app",
-        "content": base64.b64encode(json.dumps(sorted(list(client_ids))).encode("utf-8")).decode("utf-8"),
-        "branch": GITHUB_BRANCH,
-    }
-    if sha:
-        payload["sha"] = sha
+        payload = {
+            "message": "chore(data): update client_schools.json via Streamlit app",
+            "content": base64.b64encode(json.dumps(sorted(list(client_ids))).encode("utf-8")).decode("utf-8"),
+            "branch": GITHUB_BRANCH,
+        }
+        if sha:
+            payload["sha"] = sha
 
-    r_put = requests.put(url, headers=_github_headers(token), json=payload)
-    # Swallow errors but could log
+        r_put = requests.put(url, headers=_github_headers(token), json=payload)
+        ok = r_put.status_code in (200, 201)
+
+    # Store status for UI if Streamlit is available
+    try:
+        import streamlit as st
+        st.session_state["github_save_ok"] = ok
+    except Exception:
+        pass
 
 
 def resolve_data_file() -> Path:
