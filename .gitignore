@@ -54,3 +54,13 @@ Thumbs.db
 # Data files (keep the processed dataset but ignore raw DUO files for size)
 # adressen_vo.csv
 # leerlingen_vo_per_vestiging.csv
+
+
+# Node/Next.js
+node_modules/
+web/node_modules/
+web/.next/
+web/.vercel/
+web/.turbo/
+web/.env*
+web/supabase/.temp/
